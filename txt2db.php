@@ -16,7 +16,7 @@ if ($_GET['table']) {
     $columns = mysql_num_fields($fields);
     for ($i = 0; $i < $columns; $i++) {
         $field_name = mysql_field_name($fields, $i);
-        echo '<label for="' . $field_name . '"><input type="checkbox" name="' . $field_name . '" id="' . $field_name . '"/>' . $field_name . '</label>' . '<br />';
+        echo '<li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span><label for="' . $field_name . '"><input type="checkbox" name="' . $field_name . '" id="' . $field_name . '"/>' . $field_name . '</label></li>';
     }
     exit;
 }
@@ -55,31 +55,46 @@ if ($_GET['dotable'] && $_GET['dofields']) {
     <head>
         <meta charset="UTF-8">
         <title>txt2db</title>	
-        <script type="text/javascript" src="http://www.helloweba.com/demo/js/jquery-1.7.2.min.js"></script>
+        <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+        <script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
         <style type="text/css">
             .left{width:auto; margin:50px; float: left;}
             .right{ margin:50px 0; float:left;}
             .footer{ margin:50px auto; clear:both;}
             #drop_area{width:100%; height:100px; border:3px dashed silver; line-height:100px; text-align:center; font-size:36px; color:#d3d3d3}
             #preview{width:500px; overflow:hidden}
+            #fields { list-style-type: none; margin: 0; padding: 0; width: 60%;}
+            #fields li {  padding: 0.5em; padding-left: 1.5em; cursor: move;border: 2px solid #dddddd;}
+            #fields li span { position: absolute; margin-left: -1.5em;}
         </style>
         <script type="text/javascript">
             $(function() {
+                $("#fields").sortable();
+                $("#fields").disableSelection();
+                
                 $("#table").change(function() {
                     var table = $("#table option:selected").val();
                     console.log($("#table option:selected").val());
-                    $.get("txt2db.php", {table: table}, function(html) {
+                    $.get(location.href, {table: table}, function(html) {
                         $("#fields").html(html);
                     });
                 });
 
                 $("#import").click(function() {
                     var table = $("#table option:selected").val();
-                    var txt = $("#preview").text();
+                    if(table === '0'){
+                        alert('请先从下拉框中选择表');
+                        $("#table").focus();return;
+                    }
                     var fields = $("input:checkbox:checked").map(function() {
                         return $(this).attr('id');
                     }).get().join(',');
-                    $.get("txt2db.php", {dotable: table, dotxt: txt, dofields: fields}, function(html) {
+
+                    if(fields === ''){
+                        alert('请先选择要导入的字段');
+                        $("input:checkbox").eq(0).focus();return;
+                    }
+                    $.get(location.href, {dotable: table, dofields: fields}, function(html) {
                         $(".footer").append(html);
                     });
                 });
@@ -152,8 +167,8 @@ if ($_GET['dotable'] && $_GET['dofields']) {
                     ?>
                 </select>
             </label>
-            <div id="fields">
-            </div>
+            <ul id="fields">
+            </ul>
             <input id="import"  name="import" type="button" value="import" />
         </div>    
         <div class="footer">

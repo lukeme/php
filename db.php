@@ -1,3 +1,4 @@
+<?php
 class db {
 
     private static $instance;

@@ -1,27 +1,24 @@
 <?php
+error_reporting(E_ALL);
 #数据库配置#
-$config = array(
-	'host' => 'localhost',
-	'port' => '3306', #数据库端口
-	'user' => 'root',
-	'pass' => 'vertrigo',
-	'name' => 'test',
-);
+$conf = [
+	'driver'=>'mysql',
+	'host'=>'localhost',
+	'port'=>'3306',
+	'name'=>'test',
+	'user'=>'root',
+	'pass'=>'phpts',
+	'char'=>'utf8',
+];
 date_default_timezone_set('PRC');
-mysql_connect($config['host'] . ':' . $config['port'], $config['user'], $config['pass']) or die('Mysql Connect error');
-mysql_select_db($config['name']);
-mysql_query("set names 'utf8'");
-if ($_GET['table']) {
-	$fields = mysql_list_fields("test", $_GET['table']);
-	$columns = mysql_num_fields($fields);
-	for ($i = 0; $i < $columns; $i++) {
-		$field_name = mysql_field_name($fields, $i);
-		echo '<li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span><label for="' . $field_name . '"><input type="checkbox" name="' . $field_name . '" id="' . $field_name . '"/>' . $field_name . '</label></li>';
+$db = new db($conf);
+if ($_GET['table']??null) {
+	foreach ($db->getFields($_GET['table']) as $column) {
+		echo '<li class="ui-state-default"><span class="ui-icon ui-icon-arrowthick-2-n-s"></span><label for="' . $column . '"><input type="checkbox" name="' . $column . '" id="' . $column . '"/>' . $column . '</label></li>';
 	}
 	exit;
 }
-
-if ($_FILES["txtfile"]) {
+if ($_FILES["txtfile"]??null) {
 	$type = strtolower(strstr($_FILES['txtfile']['name'], '.'));
 	if ($type != ".txt") {
 		exit('格式不对！');
@@ -33,22 +30,61 @@ if ($_FILES["txtfile"]) {
 }
 
 
-if ($_GET['dotable'] && $_GET['dofields']) {
-	$table = $_GET['dotable'];
-	$fields = $_GET['dofields'];
-	$fields = '`' . str_replace(',', '`,`', $fields) . '`';
+if ($_GET['dotable']??null && $_GET['dofields']??null) {
+	$fields = '`' . str_replace(',', '`,`', trim($_GET['dofields'])) . '`';
 	$file = 'data.txt';
 	$rows = file($file);
 	foreach ($rows as $i => $row) {
-		//var_dump($row);exit;
 		$values = "'" . str_replace('|', "','", trim($row)) . "'";
 		// $name = iconv('gbk','utf-8',$arr[1]);
-		$sql = "INSERT INTO {$table} ({$fields}) values ({$values})";
-		$ok = mysql_query($sql);
-		$msg = $ok ? '<font color="#0f0">succ</font>' : '<font color="#f00">fail when exec SQL: ' . mysql_error() . ', ' . $sql . '</font>';
+		$sql = "INSERT INTO {$_GET['dotable']} ({$fields}) values ({$values})";
+		$ok = $db->exec($sql);
+		$msg = $ok ? '<font color="#0f0">succ</font>' : '<font color="#f00">fail when exec SQL: ' . $db->errorInfo() . ', ' . $sql . '</font>';
 		echo '<br>', ($i + 1), '.', $msg;
 	}
 	exit;
+}
+
+
+class db {
+	private $dbh;
+	function __construct(array $conf){
+		$dsn = sprintf('%s:host=%s;port=%s;dbname=%s;',$conf['driver'], $conf['host'], $conf['port'],$conf['name'],);
+		$this->dbh = new PDO($dsn, $conf['user'], $conf['pass']);
+		$this->dbh->query("set names {$conf['char']}");
+	}
+	
+	function fetchAll($sql = null, $mode=PDO::FETCH_ASSOC){
+		if($sql){
+			$sth = $this->dbh->prepare($sql);
+		}
+		$sth->execute();
+		return $sth->fetchAll($mode);
+	}
+	
+	function exec($sql){
+		return $this->dbh->exec($sql);
+	}
+	
+	function getTables(){
+		$sql = "SHOW TABLES";
+		return $this->fetchAll($sql, PDO::FETCH_NUM);
+	}
+	
+	function getFields($table){
+		$sql = "DESCRIBE $table";
+		return $this->fetchAll($sql, PDO::FETCH_COLUMN);
+	}
+	
+	function errorInfo(){
+		return $this->dbh->errorInfo();
+	}
+	
+	//beginTransaction,commit,rollBack
+	function __call($method, $param){
+		return $this->dbh->$method($param);
+	}
+	
 }
 ?>
 <!DOCTYPE HTML>
@@ -160,8 +196,7 @@ if ($_GET['dotable'] && $_GET['dofields']) {
 						<select name="table" id="table" required="required">
 							<option>=select a table=</option>
 							<?php
-							$result = mysql_list_tables($config['name']);
-							while ($row = mysql_fetch_row($result)) {
+							foreach ($db->getTables() as $row) {
 								echo '<option value="' . $row[0] . '">' . $row[0] . '</option>';
 							}
 							?>
@@ -179,6 +214,6 @@ if ($_GET['dotable'] && $_GET['dofields']) {
                 <hr>
             </div>
         </section>
-        <footer><?php echo date('Y-m-d H:i:s'); ?></footer>
+        <footer><?=date('Y-m-d H:i:s')?></footer>
     </body>
 </html>

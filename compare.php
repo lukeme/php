@@ -179,6 +179,7 @@ if (!empty($_POST)) {
         }
 
         .button {
+            color: white;
             align-items: center;
             display: flex;
             flex-direction: row;
